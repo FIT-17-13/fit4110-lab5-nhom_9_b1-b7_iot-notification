@@ -23,32 +23,37 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Biến runtime mặc định – có thể override qua .env
+# ==========================================
+# BIẾN RUNTIME MẶC ĐỊNH (Dùng chung)
+# ==========================================
 ENV APP_HOST=0.0.0.0
 ENV APP_PORT=8000
 ENV AUTH_TOKEN=local-dev-token
-ENV SERVICE_NAME=iot-ingestion
-ENV SERVICE_VERSION=0.5.0
+
+# Đặt biến generic vì file này build cho cả IoT lẫn Notification
+ENV SERVICE_NAME=fit4110-base-service
+ENV SERVICE_VERSION=v0.1.0-team9
+ENV APP_MODULE="src.iot_api.main:app"
 
 WORKDIR /app
 
-# Tạo user non‑root để chạy app an toàn
+# Tạo user non-root để chạy app an toàn (Đáp ứng rubric điểm cao của lab)
 RUN addgroup --system appgroup \
     && adduser --system --ingroup appgroup --home /app appuser
 
 COPY --from=builder /opt/venv /opt/venv
 COPY src/ ./src/
 
-# Cấp quyền cho user
+# Cấp quyền sở hữu thư mục /app cho non-root user
 RUN chown -R appuser:appgroup /app
 
 USER appuser
 
 EXPOSE 8000
 
-# Healthcheck sử dụng endpoint /health của API
+# Healthcheck mặc định (Sẽ bị Worker ghi đè trong docker-compose.yml)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()" || exit 1
 
-# Chạy API bằng uvicorn
-CMD ["sh", "-c", "uvicorn iot_app.main:app --app-dir src --host ${APP_HOST} --port ${APP_PORT}"]
+# Sử dụng biến APP_MODULE để file linh hoạt cho mọi API
+CMD ["sh", "-c", "uvicorn ${APP_MODULE} --host ${APP_HOST} --port ${APP_PORT}"]

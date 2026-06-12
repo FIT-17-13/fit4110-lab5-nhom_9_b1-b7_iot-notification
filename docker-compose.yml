@@ -1,35 +1,14 @@
 version: "3.8"
 
 services:
-  # Service API FastAPI
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: fit4110-api-lab05
-    env_file:
-      - .env
-    depends_on:
-      db:
-        condition: service_healthy
-      ai-service:
-        condition: service_healthy
-    networks:
-      - team-internal
-      - class-net
-    ports:
-      - "${APP_PORT:-8000}:8000"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-
-  # PostgreSQL database service
-  db:
+  # ==========================================
+  # PHẦN B1: IOT INGESTION (Tiếp nhận dữ liệu)
+  # ==========================================
+  
+  # 1. PostgreSQL Database cho IoT
+  postgres-db:
     image: postgres:15-alpine
-    container_name: fit4110-db-lab05
+    container_name: fit4110-iot-db-lab05
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-lab05}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lab05pass}
@@ -38,24 +17,107 @@ services:
       - db-data:/var/lib/postgresql/data
     networks:
       - team-internal
+    ports:
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lab05}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # AI service mẫu dùng Python HTTP server hoặc FastAPI
-  ai-service:
-    image: python:3.11-slim
-    container_name: fit4110-ai-lab05
-    working_dir: /service
-    volumes:
-      - ./src/ai_service:/service
-    command: ["python", "main.py"]
+  # 2. IoT API Service
+  iot-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fit4110-iot-api-lab05
+    env_file:
+      - .env
+    depends_on:
+      postgres-db:
+        condition: service_healthy
     networks:
       - team-internal
+      - class-net
+    ports:
+      - "${IOT_API_PORT:-8000}:8000"
+    # Ghi đè lệnh chạy để trỏ đúng vào thư mục B1
+    command: ["sh", "-c", "uvicorn src.iot_api.main:app --host 0.0.0.0 --port 8000"]
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import requests; import sys; sys.exit(0) if requests.get('http://localhost:9000/health').status_code == 200 else sys.exit(1)\""]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ==========================================
+  # PHẦN B7: NOTIFICATION (Gửi cảnh báo)
+  # ==========================================
+
+  # 3. Message Queue (RabbitMQ)
+  rabbitmq:
+    image: rabbitmq:3-management
+    platform: linux/amd64
+    container_name: fit4110-rabbitmq-lab05
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-notify_admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-secretpass}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - team-internal
+    ports:
+      - "5672:5672"
+      - "15672:15672" # Port cho trang quản trị UI của RabbitMQ
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 4. Notification API Service
+  notification-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fit4110-notify-api-lab05
+    env_file:
+      - .env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - team-internal
+      - class-net
+    ports:
+      # Dùng port 8001 để không bị đụng với port 8000 của IoT API
+      - "${NOTIFY_API_PORT:-8001}:8000"
+    # Ghi đè lệnh chạy để trỏ đúng vào thư mục API của B7
+    command: ["sh", "-c", "uvicorn src.notification_api.main:app --host 0.0.0.0 --port 8000"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # 5. Notification Worker Service
+  notification-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fit4110-notify-worker-lab05
+    env_file:
+      - .env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - team-internal
+    # Ghi đè lệnh chạy để chạy background worker của B7
+    command: ["python", "-m", "src.worker.main"]
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep src.worker.main || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -69,3 +131,4 @@ networks:
 
 volumes:
   db-data:
+  rabbitmq-data:
