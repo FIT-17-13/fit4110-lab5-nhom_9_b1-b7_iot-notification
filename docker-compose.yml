@@ -41,7 +41,6 @@ services:
       - class-net
     ports:
       - "${IOT_API_PORT:-8000}:8000"
-    # Ghi đè lệnh chạy để trỏ đúng vào thư mục B1
     command: ["sh", "-c", "uvicorn src.iot_api.main:app --host 0.0.0.0 --port 8000"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -68,7 +67,7 @@ services:
       - team-internal
     ports:
       - "5672:5672"
-      - "15672:15672" # Port cho trang quản trị UI của RabbitMQ
+      - "15672:15672"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
@@ -90,9 +89,7 @@ services:
       - team-internal
       - class-net
     ports:
-      # Dùng port 8001 để không bị đụng với port 8000 của IoT API
       - "${NOTIFY_API_PORT:-8001}:8000"
-    # Ghi đè lệnh chạy để trỏ đúng vào thư mục API của B7
     command: ["sh", "-c", "uvicorn src.notification_api.main:app --host 0.0.0.0 --port 8000"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -114,7 +111,6 @@ services:
         condition: service_healthy
     networks:
       - team-internal
-    # Ghi đè lệnh chạy để chạy background worker của B7
     command: ["python", "-m", "src.worker.main"]
     healthcheck:
       test: ["CMD-SHELL", "ps aux | grep src.worker.main || exit 1"]
@@ -122,6 +118,20 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  # ==========================================
+  # PHẦN LAB 6: IOT INGESTION SERVICE
+  # ==========================================
+  iot-ingestion:
+    build: ./lab6_iot_ingestion
+    container_name: fit4110-iot-ingestion-lab06
+    restart: always
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./lab6_iot_ingestion:/app
+    networks:
+      - team-internal
 
 networks:
   team-internal:

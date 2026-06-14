@@ -1,0 +1,70 @@
+[
+  {
+    "desc": "Normal Case",
+    "payload": {
+      "event_id": "raw-iot-001",
+      "event_type": "iot.environment.sampled",
+      "source_service": "pi-iot-simulator",
+      "device_id": "esp32-lab-a101",
+      "timestamp": "2026-06-07T14:30:10+07:00",
+      "temperature_c": 31.2,
+      "humidity_percent": 68.5,
+      "motion_detected": false,
+      "light_lux": 420,
+      "co2_ppm": 650,
+      "smoke_ppm": 0.02,
+      "battery_percent": 87
+    }
+  },
+  {
+    "desc": "Danger Case (High Temperature)",
+    "payload": {
+      "event_id": "raw-iot-002",
+      "event_type": "iot.environment.sampled",
+      "source_service": "pi-iot-simulator",
+      "device_id": "esp32-lab-a101",
+      "timestamp": "2026-06-07T14:30:11+07:00",
+      "temperature_c": 42.1,
+      "humidity_percent": 71.2,
+      "motion_detected": true,
+      "light_lux": 390,
+      "co2_ppm": 710,
+      "smoke_ppm": 0.03,
+      "battery_percent": 86
+    }
+  },
+  {
+    "desc": "Invalid Device Case",
+    "payload": {
+      "event_id": "raw-iot-003",
+      "event_type": "iot.environment.sampled",
+      "source_service": "pi-iot-simulator",
+      "device_id": "esp32-unknown-999",
+      "timestamp": "2026-06-07T14:30:20+07:00",
+      "temperature_c": 30.1,
+      "humidity_percent": 66.0,
+      "motion_detected": false,
+      "light_lux": 300,
+      "co2_ppm": 700,
+      "smoke_ppm": 0.01,
+      "battery_percent": 92
+    }
+  },
+  {
+    "desc": "Sensor Error Case",
+    "payload": {
+      "event_id": "raw-iot-004",
+      "event_type": "iot.environment.sampled",
+      "source_service": "pi-iot-simulator",
+      "device_id": "esp32-lab-a102",
+      "timestamp": "2026-06-07T14:30:25+07:00",
+      "temperature_c": null,
+      "humidity_percent": 70.2,
+      "motion_detected": false,
+      "light_lux": 410,
+      "co2_ppm": 600,
+      "smoke_ppm": 0.01,
+      "battery_percent": 77
+    }
+  }
+]
